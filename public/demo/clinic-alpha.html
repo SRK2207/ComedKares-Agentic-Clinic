@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sparsh Dental & Maxillofacial Clinic | Advanced Oral Healthcare</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #4f46e5;
+      --primary-dark: #3730a3;
+      --primary-light: #e0e7ff;
+      --text: #0f172a;
+      --muted: #64748b;
+      --bg: #f8fafc;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Plus Jakarta Sans', sans-serif; }
+    body { background-color: var(--bg); color: var(--text); line-height: 1.6; }
+
+    header {
+      background: #ffffff;
+      border-bottom: 1px solid #e2e8f0;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+    .nav-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 16px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+      color: var(--text);
+    }
+    .brand-logo {
+      width: 44px;
+      height: 44px;
+      background: var(--primary);
+      color: white;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      font-weight: 800;
+    }
+    .brand-name { font-size: 20px; font-weight: 800; color: var(--text); line-height: 1.2; }
+    .brand-tagline { font-size: 12px; color: var(--muted); font-weight: 500; }
+    
+    .nav-links { display: flex; gap: 24px; list-style: none; align-items: center; }
+    .nav-links a { text-decoration: none; color: var(--muted); font-weight: 600; font-size: 14px; transition: color 0.2s; }
+    .nav-links a:hover { color: var(--primary); }
+    .btn-emergency {
+      background: #fee2e2;
+      color: #b91c1c;
+      padding: 8px 16px;
+      border-radius: 9999px;
+      font-weight: 700;
+      font-size: 13px;
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .hero {
+      background: linear-gradient(135deg, #eef2ff 0%, #ffffff 100%);
+      padding: 80px 24px;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    .hero-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 48px;
+      align-items: center;
+    }
+    .hero-badge {
+      display: inline-block;
+      background: var(--primary-light);
+      color: var(--primary-dark);
+      padding: 6px 14px;
+      border-radius: 9999px;
+      font-weight: 700;
+      font-size: 13px;
+      margin-bottom: 20px;
+    }
+    .hero-title {
+      font-size: 46px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      line-height: 1.15;
+      margin-bottom: 20px;
+      color: #1e1b4b;
+    }
+    .hero-title span { color: var(--primary); }
+    .hero-desc { font-size: 18px; color: var(--muted); margin-bottom: 32px; max-width: 580px; }
+    .hero-card {
+      background: #ffffff;
+      padding: 32px;
+      border-radius: 24px;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
+      border: 1px solid #f1f5f9;
+    }
+
+    .services { max-width: 1200px; margin: 80px auto; padding: 0 24px; }
+    .section-title { font-size: 32px; font-weight: 800; margin-bottom: 12px; }
+    .section-sub { color: var(--muted); font-size: 16px; margin-bottom: 40px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px; }
+    .card {
+      background: white;
+      border-radius: 18px;
+      padding: 28px;
+      border: 1px solid #e2e8f0;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .card:hover { transform: translateY(-4px); box-shadow: 0 12px 20px -5px rgba(0, 0, 0, 0.05); }
+    .card-icon {
+      width: 48px;
+      height: 48px;
+      background: #eef2ff;
+      color: var(--primary);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      margin-bottom: 16px;
+    }
+    .card-title { font-size: 20px; font-weight: 700; margin-bottom: 10px; }
+    .card-desc { color: var(--muted); font-size: 14px; }
+
+    .doctors { background: #ffffff; padding: 80px 24px; border-top: 1px solid #e2e8f0; }
+    .doc-card { display: flex; gap: 18px; align-items: center; }
+    .doc-avatar {
+      width: 72px;
+      height: 72px;
+      background: #c7d2fe;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 32px;
+    }
+
+    footer {
+      background: #0f172a;
+      color: #94a3b8;
+      padding: 40px 24px;
+      text-align: center;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="nav-container">
+      <a href="#" class="brand">
+        <div class="brand-logo">🦷</div>
+        <div>
+          <div class="brand-name">Sparsh Dental & Maxillofacial</div>
+          <div class="brand-tagline">Bengaluru South • NABH Certified Center</div>
+        </div>
+      </a>
+      <ul class="nav-links">
+        <li><a href="#services">Specialties</a></li>
+        <li><a href="#doctors">Consultants</a></li>
+        <li><a href="#about">About</a></li>
+        <li><a href="tel:+918023456789" class="btn-emergency">🚨 Emergency: +91 80 2345 6789</a></li>
+      </ul>
+    </div>
+  </header>
+
+  <section class="hero">
+    <div class="hero-container">
+      <div>
+        <span class="hero-badge">✨ 24/7 AI-Powered Multilingual Booking</span>
+        <h1 class="hero-title">Pioneering <span>Dental Excellence</span> & Maxillofacial Care</h1>
+        <p class="hero-desc">Experience precision restorative dentistry, clear aligners, and painless dental surgery in Bengaluru with instant voice & text appointments in English, Hindi, and Kannada.</p>
+      </div>
+      <div class="hero-card">
+        <h3 style="font-size: 20px; font-weight: 700; margin-bottom: 12px;">Book An Instant Consultation</h3>
+        <p style="color: var(--muted); font-size: 14px; margin-bottom: 20px;">
+          Click the floating <strong>AI Receptionist</strong> button in the bottom right corner to speak or chat with our voice assistant in your preferred language.
+        </p>
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px; font-size: 13px;">
+          <div>✅ Real-time Doctor Availability</div>
+          <div>✅ 5-Minute Atomic Slot Lock</div>
+          <div>✅ Secure Razorpay UPI/Cards</div>
+          <div>✅ Instant SMS/OTP Confirmation</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="services" id="services">
+    <h2 class="section-title">Clinical Specialties</h2>
+    <p class="section-sub">Comprehensive oral care delivered with state-of-the-art diagnostic imaging.</p>
+    <div class="grid-3">
+      <div class="card">
+        <div class="card-icon">🪥</div>
+        <h3 class="card-title">General Dentistry & Hygiene</h3>
+        <p class="card-desc">Ultrasonic teeth cleaning, digital cavity restorations, fluoridation, and routine oral health checkups.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">😁</div>
+        <h3 class="card-title">Orthodontics & Clear Aligners</h3>
+        <p class="card-desc">Advanced ceramic braces, invisalign clear aligners, and dentofacial orthopedics for teens and adults.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">🩺</div>
+        <h3 class="card-title">Oral & Maxillofacial Surgery</h3>
+        <p class="card-desc">Painless wisdom teeth extraction, dental implants, trauma reconstructions, and TMJ joint therapy.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="doctors" id="doctors">
+    <div style="max-width: 1200px; margin: 0 auto;">
+      <h2 class="section-title">Our Chief Specialists</h2>
+      <p class="section-sub">Consult with top restorative dentists and maxillofacial surgeons.</p>
+      <div class="grid-3">
+        <div class="card doc-card">
+          <div class="doc-avatar">👩‍⚕️</div>
+          <div>
+            <h4 style="font-size: 18px; font-weight: 700;">Dr. Priya Sharma</h4>
+            <div style="color: var(--primary); font-size: 13px; font-weight: 600;">BDS, MDS (Conservative Dentistry)</div>
+            <div style="color: var(--muted); font-size: 12px; margin-top: 4px;">Consultation: ₹500 • English, Hindi, Kannada</div>
+          </div>
+        </div>
+        <div class="card doc-card">
+          <div class="doc-avatar">👨‍⚕️</div>
+          <div>
+            <h4 style="font-size: 18px; font-weight: 700;">Dr. Vikram Kulkarni</h4>
+            <div style="color: var(--primary); font-size: 13px; font-weight: 600;">BDS, MDS (Orthodontics)</div>
+            <div style="color: var(--muted); font-size: 12px; margin-top: 4px;">Consultation: ₹700 • English, Hindi, Kannada</div>
+          </div>
+        </div>
+        <div class="card doc-card">
+          <div class="doc-avatar">👨‍⚕️</div>
+          <div>
+            <h4 style="font-size: 18px; font-weight: 700;">Dr. Sandeep Narayan</h4>
+            <div style="color: var(--primary); font-size: 13px; font-weight: 600;">BDS, MDS, FIBOMS (Maxillofacial)</div>
+            <div style="color: var(--muted); font-size: 12px; margin-top: 4px;">Consultation: ₹900 • English, Kannada</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <p>© 2026 Sparsh Dental & Maxillofacial Clinic. Powered by ComedKares Multi-Tenant Receptionist Platform.</p>
+  </footer>
+
+  <!-- ======================================================================== -->
+  <!-- ComedKares Plug-and-Play AI Receptionist Script Tag                       -->
+  <!-- ======================================================================== -->
+  <script src="/widget.js" data-clinic-id="clinic_alpha" async></script>
+
+</body>
+</html>

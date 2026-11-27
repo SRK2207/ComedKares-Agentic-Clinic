@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sahyadri Ortho & Spine Center | Advanced Joint & Spine Surgery</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #059669;
+      --primary-dark: #047857;
+      --primary-light: #d1fae5;
+      --text: #0f172a;
+      --muted: #64748b;
+      --bg: #f8fafc;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Outfit', sans-serif; }
+    body { background-color: var(--bg); color: var(--text); line-height: 1.6; }
+
+    header {
+      background: #ffffff;
+      border-bottom: 1px solid #e2e8f0;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+    .nav-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 16px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+      color: var(--text);
+    }
+    .brand-logo {
+      width: 44px;
+      height: 44px;
+      background: var(--primary);
+      color: white;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      font-weight: 800;
+    }
+    .brand-name { font-size: 20px; font-weight: 800; color: var(--text); line-height: 1.2; }
+    .brand-tagline { font-size: 12px; color: var(--muted); font-weight: 500; }
+    
+    .nav-links { display: flex; gap: 24px; list-style: none; align-items: center; }
+    .nav-links a { text-decoration: none; color: var(--muted); font-weight: 600; font-size: 14px; transition: color 0.2s; }
+    .nav-links a:hover { color: var(--primary); }
+    .btn-emergency {
+      background: #fee2e2;
+      color: #b91c1c;
+      padding: 8px 16px;
+      border-radius: 9999px;
+      font-weight: 700;
+      font-size: 13px;
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .hero {
+      background: linear-gradient(135deg, #ecfdf5 0%, #ffffff 100%);
+      padding: 80px 24px;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    .hero-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 48px;
+      align-items: center;
+    }
+    .hero-badge {
+      display: inline-block;
+      background: var(--primary-light);
+      color: var(--primary-dark);
+      padding: 6px 14px;
+      border-radius: 9999px;
+      font-weight: 700;
+      font-size: 13px;
+      margin-bottom: 20px;
+    }
+    .hero-title {
+      font-size: 46px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      line-height: 1.15;
+      margin-bottom: 20px;
+      color: #064e3b;
+    }
+    .hero-title span { color: var(--primary); }
+    .hero-desc { font-size: 18px; color: var(--muted); margin-bottom: 32px; max-width: 580px; }
+    .hero-card {
+      background: #ffffff;
+      padding: 32px;
+      border-radius: 24px;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
+      border: 1px solid #f1f5f9;
+    }
+
+    .services { max-width: 1200px; margin: 80px auto; padding: 0 24px; }
+    .section-title { font-size: 32px; font-weight: 800; margin-bottom: 12px; }
+    .section-sub { color: var(--muted); font-size: 16px; margin-bottom: 40px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px; }
+    .card {
+      background: white;
+      border-radius: 18px;
+      padding: 28px;
+      border: 1px solid #e2e8f0;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .card:hover { transform: translateY(-4px); box-shadow: 0 12px 20px -5px rgba(0, 0, 0, 0.05); }
+    .card-icon {
+      width: 48px;
+      height: 48px;
+      background: #ecfdf5;
+      color: var(--primary);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      margin-bottom: 16px;
+    }
+    .card-title { font-size: 20px; font-weight: 700; margin-bottom: 10px; }
+    .card-desc { color: var(--muted); font-size: 14px; }
+
+    .doctors { background: #ffffff; padding: 80px 24px; border-top: 1px solid #e2e8f0; }
+    .doc-card { display: flex; gap: 18px; align-items: center; }
+    .doc-avatar {
+      width: 72px;
+      height: 72px;
+      background: #a7f3d0;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 32px;
+    }
+
+    footer {
+      background: #0f172a;
+      color: #94a3b8;
+      padding: 40px 24px;
+      text-align: center;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="nav-container">
+      <a href="#" class="brand">
+        <div class="brand-logo">🦴</div>
+        <div>
+          <div class="brand-name">Sahyadri Ortho & Spine Center</div>
+          <div class="brand-tagline">Bengaluru West • Center of Excellence in Orthopedics</div>
+        </div>
+      </a>
+      <ul class="nav-links">
+        <li><a href="#services">Specialties</a></li>
+        <li><a href="#doctors">Consultants</a></li>
+        <li><a href="#about">About</a></li>
+        <li><a href="tel:+918087654321" class="btn-emergency">🚨 Emergency Trauma: +91 80 8765 4321</a></li>
+      </ul>
+    </div>
+  </header>
+
+  <section class="hero">
+    <div class="hero-container">
+      <div>
+        <span class="hero-badge">🌿 AI Voice Receptionist • Fast Triage</span>
+        <h1 class="hero-title">Restoring Mobility, <span>Relieving Pain</span></h1>
+        <p class="hero-desc">Specialized orthopedic surgeons for robotic joint replacement, endoscopic spine decompression, and sports trauma. Book your priority consultation in English, Hindi, or Kannada.</p>
+      </div>
+      <div class="hero-card">
+        <h3 style="font-size: 20px; font-weight: 700; margin-bottom: 12px;">Schedule Orthopedic Evaluation</h3>
+        <p style="color: var(--muted); font-size: 14px; margin-bottom: 20px;">
+          Speak directly with our <strong>AI Receptionist</strong> by tapping the bottom-right green button. If you describe acute emergencies (such as chest pain or stroke), instant hospital escalation will trigger.
+        </p>
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px; font-size: 13px;">
+          <div>✅ Robot-Assisted Joint Specialists</div>
+          <div>✅ Endoscopic Spine Care</div>
+          <div>✅ Strict Emergency Red-Flag Triage</div>
+          <div>✅ Zero Wait Time Online Booking</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="services" id="services">
+    <h2 class="section-title">Orthopedic Divisions</h2>
+    <p class="section-sub">Evidence-based clinical treatments with minimally invasive surgery.</p>
+    <div class="grid-3">
+      <div class="card">
+        <div class="card-icon">🦿</div>
+        <h3 class="card-title">Joint Replacement & Arthroscopy</h3>
+        <p class="card-desc">Total knee and hip replacement, robotic cartilage resurfacing, and minimally invasive keyhole arthroscopy.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">🧍</div>
+        <h3 class="card-title">Spine Surgery & Scoliosis</h3>
+        <p class="card-desc">Microscopic spine decompression, sciatica disc herniation, spinal stenosis, and deformity correction.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">🏃</div>
+        <h3 class="card-title">Sports Medicine & Rehabilitation</h3>
+        <p class="card-desc">ACL/PCL ligament reconstruction, rotator cuff repairs, tennis elbow therapy, and athletic biomechanics.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="doctors" id="doctors">
+    <div style="max-width: 1200px; margin: 0 auto;">
+      <h2 class="section-title">Senior Orthopedic Consultants</h2>
+      <p class="section-sub">Direct consultations with renowned surgeons.</p>
+      <div class="grid-3">
+        <div class="card doc-card">
+          <div class="doc-avatar">👨‍⚕️</div>
+          <div>
+            <h4 style="font-size: 18px; font-weight: 700;">Dr. Rajeshwar Rao</h4>
+            <div style="color: var(--primary); font-size: 13px; font-weight: 600;">MBBS, MS (Ortho), MCh (Joints)</div>
+            <div style="color: var(--muted); font-size: 12px; margin-top: 4px;">Consultation: ₹800 • English, Hindi, Kannada</div>
+          </div>
+        </div>
+        <div class="card doc-card">
+          <div class="doc-avatar">👩‍⚕️</div>
+          <div>
+            <h4 style="font-size: 18px; font-weight: 700;">Dr. Ananya Deshmukh</h4>
+            <div style="color: var(--primary); font-size: 13px; font-weight: 600;">MBBS, MS (Ortho), FNB (Spine)</div>
+            <div style="color: var(--muted); font-size: 12px; margin-top: 4px;">Consultation: ₹1000 • English, Hindi, Kannada</div>
+          </div>
+        </div>
+        <div class="card doc-card">
+          <div class="doc-avatar">👨‍⚕️</div>
+          <div>
+            <h4 style="font-size: 18px; font-weight: 700;">Dr. Harish Gowda</h4>
+            <div style="color: var(--primary); font-size: 13px; font-weight: 600;">MBBS, D.Ortho (Sports Medicine)</div>
+            <div style="color: var(--muted); font-size: 12px; margin-top: 4px;">Consultation: ₹650 • English, Kannada</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <p>© 2026 Sahyadri Ortho & Spine Center. Powered by ComedKares Multi-Tenant Receptionist Platform.</p>
+  </footer>
+
+  <!-- ======================================================================== -->
+  <!-- ComedKares Plug-and-Play AI Receptionist Script Tag                       -->
+  <!-- ======================================================================== -->
+  <script src="/widget.js" data-clinic-id="clinic_beta" async></script>
+
+</body>
+</html>
