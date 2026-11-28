@@ -17,11 +17,12 @@ export async function sendOtpViaMsg91(phoneNumber: string, otpCode: string): Pro
   const formattedMobile = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
 
   try {
-    // Build query parameters cleanly with URLSearchParams
+    // Build query parameters cleanly with URLSearchParams for MSG91 v5 OTP
     const params = new URLSearchParams({
       authkey: authKey,
       mobile: formattedMobile,
       otp: otpCode,
+      otp_length: '4',
     });
 
     // Only attach template_id if provided; otherwise MSG91 uses its default template
@@ -34,14 +35,19 @@ export async function sendOtpViaMsg91(phoneNumber: string, otpCode: string): Pro
     const response = await fetch(url, {
       method: 'POST',
       headers: {
+        'authkey': authKey,
         'Content-Type': 'application/json',
       },
+      body: JSON.stringify({
+        otp: otpCode,
+        otp_length: 4,
+      }),
     });
 
     const data = await response.json().catch(() => ({}));
 
     if (response.ok) {
-      console.log(`[MSG91] OTP ${otpCode} sent successfully to ${formattedMobile}`);
+      console.log(`[MSG91] 4-digit OTP ${otpCode} sent successfully to ${formattedMobile}`);
       return { success: true };
     } else {
       console.warn(`[MSG91] Failed to deliver OTP:`, data);

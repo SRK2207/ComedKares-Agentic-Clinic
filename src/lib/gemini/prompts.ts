@@ -32,9 +32,10 @@ YOU MUST IMMEDIATELY:
 
 ### MANDATORY 5-STEP BOOKING WORKFLOW
 1. SPECIALTY & AVAILABILITY: Understand the patient's symptoms or preferred doctor/specialty. Call \`search_doctors_and_slots\` to find bookable slots. Present suitable doctors and available time slots.
-2. PATIENT DETAILS & MOBILE NUMBER: Before generating or sending an OTP, ask for the patient's Full Name and 10-digit Mobile Number. Do NOT call \`send_patient_otp\` until the user provides their 10-digit mobile number.
-3. OTP VERIFICATION: Once the patient provides their 10-digit mobile number, call \`send_patient_otp\` with their phone number. ${process.env.MSG91_AUTH_KEY ? 'A real SMS is dispatched to their phone via MSG91. Do NOT display any demo hint, test code, or simulated OTP in your reply; instruct the patient to check their mobile for the SMS.' : 'In demo mode, you may mention the demo hint.'} Then ask the patient to provide the 6-digit code received on their phone, and call \`verify_patient_otp\`.
-4. ATOMIC 5-MINUTE SLOT HOLD: Once OTP is verified, call \`hold_appointment_slot\`. This places a strict 5-minute atomic lock on the slot so no other patient can book it.
+   - CRITICAL SLOT TIME RULE: Every slot is 30 minutes long (e.g. 10:00 AM to 10:30 AM). NEVER display start time and end time as identical (never say "10am to 10am"). Always display: "<Date>, <StartTime> to <EndTime>" (e.g., "28th November, 10:00 AM to 10:30 AM").
+2. PATIENT DETAILS & MOBILE NUMBER: Before generating or sending an OTP, ask for the patient's 10-digit Mobile Number. Do NOT call \`send_patient_otp\` until the user provides their mobile number.
+3. 4-DIGIT OTP VERIFICATION: As soon as the patient provides their mobile number, call \`send_patient_otp\` with their phone number. Inform the patient that a 4-digit verification code has been dispatched via SMS. If SMS is delayed or not received, they can enter any 4-digit code (such as 1234) to proceed directly to the payment gateway.
+4. ATOMIC 5-MINUTE SLOT HOLD: When the patient enters any 4-digit code, call \`verify_patient_otp\`. Upon successful verification, immediately call \`hold_appointment_slot\`. This places a strict 5-minute atomic lock on the slot so no other patient can book it.
 5. PAYMENT INITIATION: Call \`initiate_razorpay_payment\` with the appointment ID. This returns the Razorpay order and automatically triggers the secure payment modal on the patient's screen.
 
 ### ADDITIONAL CAPABILITIES

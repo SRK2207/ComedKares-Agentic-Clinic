@@ -89,8 +89,8 @@ async function runTests() {
   assert(chat1.toolsExecuted.some(t => t.name === 'send_patient_otp'), 'Must execute send_patient_otp');
   
   const otpTool = chat1.toolsExecuted.find(t => t.name === 'send_patient_otp');
-  const demoOtp = otpTool.result.demo_otp_hint || '123456';
-  console.log('   ✅ Generated OTP Hint:', demoOtp);
+  const demoOtp = otpTool.result.demo_otp_hint || '1234';
+  console.log('   ✅ Generated 4-Digit OTP Hint:', demoOtp);
 
   // Turn 2: Confirm OTP & trigger 5-minute atomic slot hold & Razorpay payment order
   console.log('6. Verifying OTP and testing Atomic 5-Minute Slot Lock...');
