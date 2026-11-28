@@ -17,9 +17,19 @@ export async function sendOtpViaMsg91(phoneNumber: string, otpCode: string): Pro
   const formattedMobile = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
 
   try {
-    // MSG91 Send OTP API Endpoint
-    // Docs: https://control.msg91.com/api/v5/otp
-    let url = `https://control.msg91.com/api/v5/otp?template_id=${templateId || ''}&mobile=${formattedMobile}&authkey=${authKey}&otp=${otpCode}`;
+    // Build query parameters cleanly with URLSearchParams
+    const params = new URLSearchParams({
+      authkey: authKey,
+      mobile: formattedMobile,
+      otp: otpCode,
+    });
+
+    // Only attach template_id if provided; otherwise MSG91 uses its default template
+    if (templateId && templateId.trim()) {
+      params.append('template_id', templateId.trim());
+    }
+
+    const url = `https://control.msg91.com/api/v5/otp?${params.toString()}`;
 
     const response = await fetch(url, {
       method: 'POST',
