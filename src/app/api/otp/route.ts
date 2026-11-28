@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/supabase/db';
+import { sendOtpViaMsg91 } from '@/lib/sms';
 
 function corsHeaders() {
   return {
@@ -35,6 +36,10 @@ export async function POST(request: NextRequest) {
 
     if (action === 'send') {
       const { code, demoHint } = db.createOtp(clinic.id, phone_number);
+
+      // Asynchronously trigger real SMS if MSG91 keys are set
+      await sendOtpViaMsg91(phone_number, code).catch(() => {});
+
       return NextResponse.json(
         {
           success: true,

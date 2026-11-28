@@ -1,6 +1,7 @@
 import { GoogleGenAI } from '@google/genai';
 import { db } from '../supabase/db';
 import { createRazorpayOrder } from '../razorpay';
+import { sendOtpViaMsg91 } from '../sms';
 import { buildSystemPrompt } from './prompts';
 import { GEMINI_TOOL_DECLARATIONS } from './tools';
 import { AgentContext, AgentResponse, ChatMessage } from './types';
@@ -43,6 +44,7 @@ export async function executeTool(name: string, args: Record<string, any>): Prom
 
     case 'send_patient_otp': {
       const { code, demoHint } = db.createOtp(clinicId, args.phone_number);
+      await sendOtpViaMsg91(args.phone_number, code).catch(() => {});
       return {
         status: 'OTP_SENT',
         phone_number: args.phone_number,
