@@ -188,13 +188,20 @@ DECLARE
     clinic_a_id UUID := 'a0000000-0000-0000-0000-000000000001';
     clinic_b_id UUID := 'b0000000-0000-0000-0000-000000000002';
     doc_record RECORD;
-    h INT;
+    slot_offset INTERVAL;
 BEGIN
     FOR d_offset IN 0..6 LOOP
-        -- Morning slots (10:00, 11:00, 12:00) and Afternoon (15:00, 16:00, 17:00)
+        -- Staggered realistic slots (10:00-10:30, 11:15-11:45, 12:30-13:00, 14:30-15:00, 15:45-16:15, 17:00-17:30)
         FOR doc_record IN SELECT id, clinic_id FROM doctors WHERE is_active = true LOOP
-            FOREACH h IN ARRAY ARRAY[10, 11, 12, 15, 16, 17] LOOP
-                slot_time := (curr_day + d_offset) + (h || ' hours')::INTERVAL;
+            FOREACH slot_offset IN ARRAY ARRAY[
+                '10 hours'::INTERVAL,
+                '11 hours 15 minutes'::INTERVAL,
+                '12 hours 30 minutes'::INTERVAL,
+                '14 hours 30 minutes'::INTERVAL,
+                '15 hours 45 minutes'::INTERVAL,
+                '17 hours'::INTERVAL
+            ] LOOP
+                slot_time := (curr_day + d_offset) + slot_offset;
                 
                 -- Skip if past current time for today
                 IF slot_time > NOW() THEN

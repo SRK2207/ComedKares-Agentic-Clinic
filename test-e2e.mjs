@@ -67,7 +67,8 @@ async function runTests() {
   console.log('   AI Reply (Asking for phone):', chatPromptPhone.reply.substring(0, 90) + '...');
   assert(chatPromptPhone.toolsExecuted.some(t => t.name === 'search_doctors_and_slots'), 'Must execute search_doctors_and_slots');
   assert(chatPromptPhone.reply.includes('10-digit mobile number'), 'Must prompt for 10-digit mobile number');
-  console.log('   ✅ Agent correctly requested 10-digit phone number before generating OTP');
+  assert(chatPromptPhone.reply.includes('10:00') && chatPromptPhone.reply.includes('11:15'), 'Must list distinct 10:00 and 11:15 slots');
+  console.log('   ✅ Agent correctly requested 10-digit phone number with distinct 10:00 and 11:15 slot windows');
 
   // Step 5b: Patient provides 10-digit phone number -> Agent sends OTP
   const chat1 = await (await fetch(`${BASE}/api/agent/chat`, {
@@ -87,6 +88,8 @@ async function runTests() {
 
   console.log('   AI Reply (OTP dispatched):', chat1.reply.substring(0, 90) + '...');
   assert(chat1.toolsExecuted.some(t => t.name === 'send_patient_otp'), 'Must execute send_patient_otp');
+  assert(!chat1.reply.includes('delayed'), 'Reply must not mention delayed SMS bypass');
+  assert(!chat1.reply.includes('1234'), 'Reply must not leak 1234 fallback code');
   
   const otpTool = chat1.toolsExecuted.find(t => t.name === 'send_patient_otp');
   const demoOtp = otpTool.result.demo_otp_hint || '1234';

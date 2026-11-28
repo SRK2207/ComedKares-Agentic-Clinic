@@ -147,7 +147,14 @@ const SEED_DOCTORS: Doctor[] = [
 // Generate 7-day rolling slots
 function generateInitialSlots(): Slot[] {
   const slots: Slot[] = [];
-  const hours = [10, 11, 12, 15, 16, 17];
+  const slotSchedules = [
+    { hour: 10, minute: 0 },
+    { hour: 11, minute: 15 },
+    { hour: 12, minute: 30 },
+    { hour: 14, minute: 30 },
+    { hour: 15, minute: 45 },
+    { hour: 17, minute: 0 },
+  ];
   let slotIndex = 1;
 
   for (let d = 0; d < 7; d++) {
@@ -155,12 +162,12 @@ function generateInitialSlots(): Slot[] {
     targetDate.setDate(targetDate.getDate() + d);
 
     for (const doc of SEED_DOCTORS) {
-      for (const h of hours) {
+      for (const t of slotSchedules) {
         const start = new Date(targetDate);
-        start.setHours(h, 0, 0, 0);
+        start.setHours(t.hour, t.minute, 0, 0);
         const end = new Date(start.getTime() + 30 * 60 * 1000);
 
-        const slotId = `slot-${doc.clinic_id.substring(0, 4)}-${doc.id.substring(0, 4)}-d${d}-h${h}`;
+        const slotId = `slot-${doc.clinic_id.substring(0, 4)}-${doc.id.substring(0, 4)}-d${d}-h${t.hour}m${t.minute}`;
         slots.push({
           id: slotId,
           clinic_id: doc.clinic_id,

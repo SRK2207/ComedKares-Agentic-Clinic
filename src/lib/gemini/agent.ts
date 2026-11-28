@@ -19,9 +19,21 @@ export async function executeTool(name: string, args: Record<string, any>): Prom
   switch (name) {
     case 'search_doctors_and_slots': {
       const doctors = db.getDoctors(clinicId, args.specialty_or_query);
-      const slots = db.getSlots(clinicId, args.doctor_id, args.date);
+      const matchedDoctorId = args.doctor_id || (doctors.length === 1 ? doctors[0].id : undefined);
+      const slots = db.getSlots(clinicId, matchedDoctorId, args.date);
+
+      // De-duplicate slots by start_time so distinct consecutive slot times are presented
+      const seenTimes = new Set<string>();
+      const distinctSlots: any[] = [];
+      for (const s of slots) {
+        if (!seenTimes.has(s.start_time)) {
+          seenTimes.add(s.start_time);
+          distinctSlots.push(s);
+        }
+      }
+
       return {
-        count: slots.length,
+        count: distinctSlots.length,
         doctors: doctors.map(d => ({
           id: d.id,
           name: d.name,
@@ -30,13 +42,13 @@ export async function executeTool(name: string, args: Record<string, any>): Prom
           fee_inr: d.consultation_fee_inr,
           languages: d.languages,
         })),
-        available_slots: slots.slice(0, 10).map(s => {
+        available_slots: distinctSlots.slice(0, 10).map(s => {
           const startDate = new Date(s.start_time);
           const endDate = new Date(s.end_time);
-          const dateStr = startDate.toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' });
+          const dateStr = startDate.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' });
           const startFormatted = startDate.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true });
           const endFormatted = endDate.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true });
-          const displaySlot = `${dateStr}, ${startFormatted} to ${endFormatted}`;
+          const displaySlot = `${dateStr} from ${startFormatted} to ${endFormatted}`;
           return {
             id: s.id,
             doctor_id: s.doctor_id,
@@ -340,10 +352,10 @@ export async function runSimulatedReceptionistTurn(
       }
     } else {
       reply = lang === 'hi'
-        ? `अमान्य OTP कोड। कृपया कोई भी 4-अंकीय कोड (जैसे 1234) दर्ज करें।`
+        ? `अमान्य OTP कोड। कृपया अपने मोबाइल पर प्राप्त 4-अंकीय सत्यापन कोड दर्ज करें।`
         : lang === 'kn'
-        ? `ತಪ್ಪಾದ OTP ಕೋಡ್. ದಯವಿಟ್ಟು ಯಾವುದೇ 4-ಅಂಕಿಯ ಕೋಡ್ (ಉದಾ. 1234) ನಮೂದಿಸಿ.`
-        : `Invalid OTP code. Please enter any 4-digit code (e.g. 1234) to proceed.`;
+        ? `ತಪ್ಪಾದ OTP ಕೋಡ್. ದಯವಿಟ್ಟು ನಿಮ್ಮ ಮೊಬೈಲ್‌ಗೆ ಬಂದ 4-ಅಂಕಿಯ ಪರಿಶೀಲನಾ ಕೋಡ್ ನಮೂದಿಸಿ.`
+        : `Invalid OTP code. Please enter the 4-digit verification code sent to your mobile phone.`;
       return { reply, language: lang, toolsExecuted };
     }
   }
@@ -362,15 +374,15 @@ export async function runSimulatedReceptionistTurn(
 
     if (lang === 'hi') {
       reply = hasRealSms
-        ? `धन्यवाद! मैंने आपके मोबाइल नंबर +91 ${phoneInMsg} पर SMS द्वारा 4-अंकीय सत्यापन कोड (OTP) भेज दिया है। कृपया 4-अंकीय OTP दर्ज करें (यदि SMS मिलने में देरी हो, तो आप 1234 दर्ज करके भी सीधे भुगतान विंडो पर जा सकते हैं)।`
+        ? `धन्यवाद! मैंने आपके मोबाइल नंबर +91 ${phoneInMsg} पर SMS द्वारा 4-अंकीय सत्यापन कोड (OTP) भेज दिया है। कृपया 5 मिनट के लिए स्लॉट सुरक्षित करने हेतु OTP दर्ज करें।`
         : `धन्यवाद! मैंने +91 ${phoneInMsg} के लिए 4-अंकीय सत्यापन कोड तैयार कर दिया है (डेमो OTP: ${otpResult.demo_otp_hint})। कृपया 5 मिनट के लिए स्लॉट लॉक करने हेतु OTP बताएं।`;
     } else if (lang === 'kn') {
       reply = hasRealSms
-        ? `ಧನ್ಯವಾದಗಳು! ನಾನು ನಿಮ್ಮ ಮೊಬೈಲ್ ಸಂಖ್ಯೆ +91 ${phoneInMsg} ಗೆ SMS ಮೂಲಕ 4-ಅಂಕಿಯ OTP ಕಳುಹಿಸಿದ್ದೇನೆ. ದಯವಿಟ್ಟು 4-ಅಂಕಿಯ OTP ತಿಳಿಸಿ (SMS ವಿಳಂಬವಾದರೆ, ನೀವು 1234 ನಮೂದಿಸಿ ನೇರವಾಗಿ ಪಾವತಿಗೆ ಮುಂದುವರಿಯಬಹುದು).`
+        ? `ಧನ್ಯವಾದಗಳು! ನಾನು ನಿಮ್ಮ ಮೊಬೈಲ್ ಸಂಖ್ಯೆ +91 ${phoneInMsg} ಗೆ SMS ಮೂಲಕ 4-ಅಂಕಿಯ OTP ಕಳುಹಿಸಿದ್ದೇನೆ. ದಯವಿಟ್ಟು 5 ನಿಮಿಷಗಳ ಕಾಲ ಸ್ಲಾಟ್ ಲಾಕ್ ಮಾಡಲು OTP ತಿಳಿಸಿ.`
         : `ಧನ್ಯವಾದಗಳು! ನಾನು +91 ${phoneInMsg} ಗೆ 4-ಅಂಕಿಯ ಪರಿಶೀಲನಾ ಕೋಡ್ ರಚಿಸಿದ್ದೇನೆ (ಡೆಮೊ OTP: ${otpResult.demo_otp_hint}). 5 ನಿಮಿಷಗಳ ಕಾಲ ಸ್ಲಾಟ್ ಕಾಯ್ದಿರಿಸಲು ದಯವಿಟ್ಟು OTP ತಿಳಿಸಿ.`;
     } else {
       reply = hasRealSms
-        ? `Thank you! I have sent a 4-digit verification code to your mobile number +91 ${phoneInMsg} via SMS. Please enter the 4-digit OTP (if SMS is delayed, you can enter any 4-digit code like 1234) to hold your slot for 5 minutes and open the payment gateway.`
+        ? `Thank you! I have sent a 4-digit verification code to your mobile number +91 ${phoneInMsg} via SMS. Please enter the OTP to hold your slot for 5 minutes and open the payment gateway.`
         : `Thank you! I have generated a 4-digit verification code for +91 ${phoneInMsg} (Demo OTP hint: ${otpResult.demo_otp_hint}). Please enter the 4-digit OTP to hold your slot for 5 minutes.`;
     }
 
@@ -398,14 +410,7 @@ export async function runSimulatedReceptionistTurn(
     const docList = searchResult.doctors.length > 0
       ? searchResult.doctors.slice(0, 3).map((d: any) => `${d.name} (${d.department}, ₹${d.fee_inr})`).join(', ')
       : 'our medical specialists';
-    const slotList = searchResult.available_slots.slice(0, 2).map((s: any) => {
-      const start = new Date(s.start_time);
-      const end = new Date(s.end_time);
-      const dateStr = start.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' });
-      const startTimeStr = start.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true });
-      const endTimeStr = end.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true });
-      return `${dateStr} from ${startTimeStr} to ${endTimeStr}`;
-    }).join(' and ');
+    const slotList = searchResult.available_slots.slice(0, 2).map((s: any) => s.display_slot).join(' and ');
 
     if (activePhone) {
       // If phone number is available in message or history, trigger OTP immediately
@@ -421,15 +426,15 @@ export async function runSimulatedReceptionistTurn(
 
       if (lang === 'hi') {
         reply = hasRealSms
-          ? `${clinicName} में विशेषज्ञ डॉक्टर उपलब्ध हैं: ${docList}। उपलब्ध स्लॉट: ${slotList}। मैंने आपके मोबाइल +91 ${activePhone} पर SMS द्वारा 4-अंकीय सत्यापन OTP भेज दिया है। कृपया 4-अंकीय OTP बताएं (या SMS न आने पर 1234 दर्ज करें)।`
+          ? `${clinicName} में विशेषज्ञ डॉक्टर उपलब्ध हैं: ${docList}। उपलब्ध स्लॉट: ${slotList}। मैंने आपके मोबाइल +91 ${activePhone} पर SMS द्वारा 4-अंकीय सत्यापन OTP भेज दिया है। स्लॉट 5 मिनट के लिए लॉक करने हेतु कृपया OTP बताएं।`
           : `${clinicName} में हमारे पास विशेषज्ञ डॉक्टर उपलब्ध हैं: ${docList}। उपलब्ध स्लॉट: ${slotList}। मैंने आपके नंबर पर सत्यापन OTP भेज दिया है (डेमो OTP: ${otpResult.demo_otp_hint})। स्लॉट 5 मिनट के लिए लॉक करने हेतु कृपया OTP बताएं।`;
       } else if (lang === 'kn') {
         reply = hasRealSms
-          ? `${clinicName} ನಲ್ಲಿ ಲಭ್ಯವಿರುವ ವೈದ್ಯರು: ${docList}. ಲಭ್ಯವಿರುವ ಸ್ಲಾಟ್‌ಗಳು: ${slotList}. ನಾನು ನಿಮ್ಮ ಮೊಬೈಲ್ +91 ${activePhone} ಗೆ SMS ಮೂಲಕ 4-ಅಂಕಿಯ OTP ಕಳುಹಿಸಿದ್ದೇನೆ. ದಯವಿಟ್ಟು 4-ಅಂಕಿಯ OTP ತಿಳಿಸಿ (ಅಥವಾ 1234 ನಮೂದಿಸಿ).`
+          ? `${clinicName} ನಲ್ಲಿ ಲಭ್ಯವಿರುವ ವೈದ್ಯರು: ${docList}. ಲಭ್ಯವಿರುವ ಸ್ಲಾಟ್‌ಗಳು: ${slotList}. ನಾನು ನಿಮ್ಮ ಮೊಬೈಲ್ +91 ${activePhone} ಗೆ SMS ಮೂಲಕ 4-ಅಂಕಿಯ OTP ಕಳುಹಿಸಿದ್ದೇನೆ. 5 ನಿಮಿಷಗಳ ಕಾಲ ಸ್ಲಾಟ್ ಲಾಕ್ ಮಾಡಲು ದಯವಿಟ್ಟು OTP ತಿಳಿಸಿ.`
           : `${clinicName} ನಲ್ಲಿ ನಮ್ಮ ಲಭ್ಯವಿರುವ ವೈದ್ಯರು: ${docList}. ಲಭ್ಯವಿರುವ ಸ್ಲಾಟ್‌ಗಳು: ${slotList}. ನಾನು ನಿಮ್ಮ ಮೊಬೈಲ್‌ಗೆ OTP ಕಳುಹಿಸಿದ್ದೇನೆ (ಡೆಮೊ OTP: ${otpResult.demo_otp_hint}). 5 ನಿಮಿಷಗಳ ಕಾಲ ಸ್ಲಾಟ್ ಕಾಯ್ದಿರಿಸಲು ದಯವಿಟ್ಟು OTP ತಿಳಿಸಿ.`;
       } else {
         reply = hasRealSms
-          ? `At ${clinicName}, our available specialists are: ${docList}. Upcoming available slots include ${slotList}. I have sent a 4-digit verification code to +91 ${activePhone} via SMS. Please enter the 4-digit OTP (or enter 1234 if SMS is delayed) to hold your slot for 5 minutes!`
+          ? `At ${clinicName}, our available specialists are: ${docList}. Upcoming available slots include ${slotList}. I have sent a 4-digit verification code to +91 ${activePhone} via SMS. Please enter the OTP to hold your slot for 5 minutes!`
           : `At ${clinicName}, our available specialists are: ${docList}. Upcoming available slots include ${slotList}. I have generated a 4-digit verification code (Demo OTP hint: ${otpResult.demo_otp_hint}). Please confirm your OTP to hold your slot!`;
       }
     } else {

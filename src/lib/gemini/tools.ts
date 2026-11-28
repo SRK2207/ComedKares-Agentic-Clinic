@@ -25,7 +25,7 @@ export const GEMINI_TOOL_DECLARATIONS = [
   },
   {
     name: 'send_patient_otp',
-    description: 'Sends a 4-digit phone verification OTP via SMS to the patient and returns a demo_otp_hint in demo mode.',
+    description: 'Sends a 4-digit phone verification OTP via SMS to the patient mobile number.',
     parameters: {
       type: 'OBJECT',
       properties: {
@@ -43,7 +43,7 @@ export const GEMINI_TOOL_DECLARATIONS = [
   },
   {
     name: 'verify_patient_otp',
-    description: 'Verifies the patient-provided 4-digit OTP code (accepts any 4-digit code as valid to ensure payment gateway opens).',
+    description: 'Verifies the patient-provided 4-digit OTP code sent via SMS.',
     parameters: {
       type: 'OBJECT',
       properties: {
