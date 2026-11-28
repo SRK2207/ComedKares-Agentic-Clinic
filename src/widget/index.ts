@@ -484,6 +484,7 @@ interface ClinicConfig {
       modal: {
         ondismiss: function () {
           addMessage('assistant', 'Payment checkout was closed. Your slot remains held for the duration of the 5-minute timer.');
+          renderDemoPaymentCard(payload, options.handler);
         },
       },
     };

@@ -312,9 +312,10 @@ class MultiTenantStore {
     }
 
     // Atomic conditional check:
-    // (status = 'AVAILABLE' OR (status = 'HELD' AND hold_expires_at < NOW()))
+    // (status = 'AVAILABLE' OR (status = 'HELD' AND (hold_expires_at < NOW() OR held_by_session_id = sessionId)))
     const isExpiredHeld = slot.status === 'HELD' && slot.hold_expires_at && new Date(slot.hold_expires_at).getTime() < now;
-    if (slot.status !== 'AVAILABLE' && !isExpiredHeld) {
+    const isHeldByThisSession = slot.status === 'HELD' && slot.held_by_session_id === sessionId;
+    if (slot.status !== 'AVAILABLE' && !isExpiredHeld && !isHeldByThisSession) {
       return { success: false, error: 'Slot is already booked or held by another patient' };
     }
 

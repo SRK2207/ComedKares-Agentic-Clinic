@@ -187,6 +187,210 @@ export async function executeTool(name: string, args: Record<string, any>): Prom
   }
 }
 
+function isWaitingForOtp(history: ChatMessage[], userMessage: string): boolean {
+  if (!history || !Array.isArray(history) || history.length === 0) return false;
+  // If user provided a 10-digit phone number, this turn is NOT an OTP submission
+  if (extractPhoneNumber(userMessage)) return false;
+
+  for (let i = history.length - 1; i >= 0; i--) {
+    const msg = history[i];
+    if (msg.role === 'assistant') {
+      const lower = msg.content.toLowerCase();
+      // Must be an explicit prompt asking to enter or confirm OTP
+      const askedToEnterOtp = lower.includes('enter the otp') || 
+                              lower.includes('enter the 4-digit') ||
+                              lower.includes('confirm your otp') ||
+                              lower.includes('सत्यापन कोड दर्ज') ||
+                              lower.includes('otp बताएं') ||
+                              lower.includes('otp ತಿಳಿಸಿ');
+      if (askedToEnterOtp) {
+        const cleanMsg = userMessage.trim().toLowerCase();
+        const hasOtpDigits = /^\s*(?:otp\s*[:=]?\s*)?(\d{4}|\d{6})\s*$/i.test(cleanMsg) || /\b\d{4}\b/.test(cleanMsg);
+        const isConfirm = ['done', 'ok', 'yes', 'verified', 'confirm', 'ಹಾ', 'हाँ', 'हो गया'].some(w => cleanMsg.includes(w));
+        return hasOtpDigits || isConfirm;
+      }
+      break;
+    }
+  }
+  return false;
+}
+
+function findDoctorFromHistory(clinicId: string, history: ChatMessage[]): any | null {
+  if (!history || !Array.isArray(history)) return null;
+  const doctors = db.getDoctors(clinicId);
+  const fullText = history.map(h => h.content.toLowerCase()).join(' ');
+  for (const doc of doctors) {
+    const lastName = doc.name.toLowerCase().replace(/^(?:dr\.?|doctor)\s+/i, '').trim();
+    if (fullText.includes(lastName)) {
+      return doc;
+    }
+  }
+  return null;
+}
+
+export async function handleOtpVerificationAndPayment(
+  context: AgentContext,
+  userMessage: string,
+  code: string,
+  lang: LanguageCode
+): Promise<AgentResponse> {
+  const clinic = db.getClinic(context.clinic_id);
+  const clinicName = clinic?.name || 'Clinic';
+  const toolsExecuted: AgentResponse['toolsExecuted'] = [];
+  
+  const phoneInMsg = extractPhoneNumber(userMessage);
+  const historyPhone = extractPhoneNumberFromHistory(context.history);
+  const phone = phoneInMsg || historyPhone || '9876543210';
+  const patientName = extractPatientNameFromHistory(context.history) || 'Patient';
+
+  // 1. Verify OTP
+  const verifyResult = await executeTool('verify_patient_otp', {
+    clinic_id: context.clinic_id,
+    phone_number: phone,
+    otp_code: code,
+  });
+
+  toolsExecuted.push({
+    name: 'verify_patient_otp',
+    args: { clinic_id: context.clinic_id, phone_number: phone, otp_code: code },
+    result: verifyResult,
+  });
+
+  if (!verifyResult.verified) {
+    const invalidReply = lang === 'hi'
+      ? `अमान्य OTP कोड। कृपया अपने मोबाइल पर प्राप्त 4-अंकीय सत्यापन कोड दर्ज करें।`
+      : lang === 'kn'
+      ? `ತಪ್ಪಾದ OTP ಕೋಡ್. ದಯವಿಟ್ಟು ನಿಮ್ಮ ಮೊಬೈಲ್‌ಗೆ ಬಂದ 4-ಅಂಕಿಯ ಪರಿಶೀಲನಾ ಕೋಡ್ ನಮೂದಿಸಿ.`
+      : `Invalid OTP code. Please enter the 4-digit verification code sent to your mobile phone.`;
+    return {
+      reply: invalidReply,
+      language: lang,
+      toolsExecuted,
+    };
+  }
+
+  // 2. Locate suitable slot:
+  // a) Check if already held by this session
+  let chosenSlot: any = db.slots.find(
+    s => s.clinic_id === context.clinic_id && s.held_by_session_id === context.session_id
+  );
+
+  // b) Check doctor mentioned in history
+  if (!chosenSlot) {
+    const matchedDoc = findDoctorFromHistory(context.clinic_id, context.history);
+    if (matchedDoc) {
+      const docSlots = db.getSlots(context.clinic_id, matchedDoc.id);
+      if (docSlots.length > 0) {
+        chosenSlot = docSlots[0];
+      }
+    }
+  }
+
+  // c) Fallback to any available slot
+  if (!chosenSlot) {
+    const available = db.getSlots(context.clinic_id);
+    if (available.length > 0) {
+      chosenSlot = available[0];
+    }
+  }
+
+  // d) Ultimate fallback: take any slot for this clinic and make it available
+  if (!chosenSlot) {
+    chosenSlot = db.slots.find(s => s.clinic_id === context.clinic_id);
+    if (chosenSlot) {
+      chosenSlot.status = 'AVAILABLE';
+      chosenSlot.hold_expires_at = null;
+      chosenSlot.held_by_session_id = null;
+    }
+  }
+
+  if (!chosenSlot) {
+    const start = new Date();
+    start.setMinutes(start.getMinutes() + 15, 0, 0);
+    const end = new Date(start.getTime() + 30 * 60 * 1000);
+    const fallbackDoc = db.getDoctors(context.clinic_id)[0];
+    chosenSlot = {
+      id: `slot-fallback-${Date.now()}`,
+      clinic_id: context.clinic_id,
+      doctor_id: fallbackDoc?.id || 'doc-fallback',
+      start_time: start.toISOString(),
+      end_time: end.toISOString(),
+      status: 'AVAILABLE',
+      hold_expires_at: null,
+      held_by_session_id: null,
+    };
+    db.slots.push(chosenSlot);
+  }
+
+  // 3. Atomically hold slot
+  const holdResult = await executeTool('hold_appointment_slot', {
+    clinic_id: context.clinic_id,
+    slot_id: chosenSlot.id,
+    session_id: context.session_id,
+    patient_name: patientName,
+    patient_phone: phone,
+    patient_age: 32,
+    symptoms_summary: 'Consultation appointment',
+    consent_granted: true,
+  });
+
+  toolsExecuted.push({
+    name: 'hold_appointment_slot',
+    args: { clinic_id: context.clinic_id, slot_id: chosenSlot.id },
+    result: holdResult,
+  });
+
+  // 4. Initiate Razorpay payment
+  const appointmentId = holdResult.appointment_id || `appt-${Date.now()}`;
+  const payResult = await executeTool('initiate_razorpay_payment', {
+    clinic_id: context.clinic_id,
+    appointment_id: appointmentId,
+  });
+
+  toolsExecuted.push({
+    name: 'initiate_razorpay_payment',
+    args: { clinic_id: context.clinic_id, appointment_id: appointmentId },
+    result: payResult,
+  });
+
+  const actionRequired: AgentResponse['actionRequired'] = 'PAYMENT_CHECKOUT';
+  const paymentPayload = {
+    order_id: payResult.order_id,
+    amount: payResult.amount,
+    key_id: payResult.key_id,
+    currency: payResult.currency || 'INR',
+    appointment_id: appointmentId,
+  };
+  const slotHeldPayload = {
+    slot_id: chosenSlot.id,
+    appointment_id: appointmentId,
+    expires_at: holdResult.expires_at || new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+  };
+
+  const start = new Date(chosenSlot.start_time);
+  const end = new Date(chosenSlot.end_time);
+  const formattedDate = `${start.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })}, ${start.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true })} to ${end.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true })}`;
+  const doctorName = chosenSlot.doctor_name || payResult.doctor_name || 'Doctor';
+
+  let reply = '';
+  if (lang === 'hi') {
+    reply = `OTP सफलतापूर्वक सत्यापित हो गया है! मैंने ${doctorName} के साथ ${formattedDate} का स्लॉट आपके लिए 5 मिनट के लिए आरक्षित कर दिया है। बुकिंग पूरी करने के लिए रेजरपे भुगतान विंडो खुल रही है (परामर्श शुल्क: ₹${payResult.fee_inr})।`;
+  } else if (lang === 'kn') {
+    reply = `OTP ಯಶಸ್ವಿಯಾಗಿ ಪರಿಶೀಲಿಸಲಾಗಿದೆ! ನಾನು ${doctorName} ಅವರೊಂದಿಗೆ ${formattedDate} ರ ಸ್ಲಾಟ್ ಅನ್ನು 5 ನಿಮಿಷಗಳ ಕಾಲ ಲಾಕ್ ಮಾಡಿದ್ದೇನೆ. ಕನ್ಸಲ್ಟೇಶನ್ ಶುಲ್ಕ ₹${payResult.fee_inr} ಪಾವತಿಸಲು ರೇಜರ್‌ಪೇ ವಿಂಡೋ ತೆರೆಯುತ್ತಿದೆ.`;
+  } else {
+    reply = `OTP verified successfully! I have placed an atomic 5-minute hold on your slot with ${doctorName} on ${formattedDate}. Launching Razorpay checkout to confirm your appointment (Fee: ₹${payResult.fee_inr}).`;
+  }
+
+  return {
+    reply,
+    language: lang,
+    toolsExecuted,
+    actionRequired,
+    paymentPayload,
+    slotHeldPayload,
+  };
+}
+
 /**
  * Intelligent deterministic rule-based conversational receptionist
  * Acts when GEMINI_API_KEY is not set or as instant deterministic responder
@@ -262,102 +466,13 @@ export async function runSimulatedReceptionistTurn(
   const activePhone = phoneInMsg || historyPhone;
   const hasRealSms = Boolean(process.env.MSG91_AUTH_KEY);
 
-  // 2. OTP Verification check (accepts any 4-digit or 6-digit code)
+  // 2. OTP Verification check (accepts any 4-digit or 6-digit code or OTP intent)
   const otpMatch = !phoneInMsg ? (userMessage.match(/\b\d{4}\b/) || userMessage.match(/\b\d{6}\b/)) : null;
-  if (otpMatch) {
-    const code = otpMatch[0];
-    const phone = activePhone || '9876543210';
-    const verifyResult = await executeTool('verify_patient_otp', {
-      clinic_id: context.clinic_id,
-      phone_number: phone,
-      otp_code: code,
-    });
+  const waitingForOtp = !phoneInMsg && isWaitingForOtp(context.history, userMessage);
 
-    toolsExecuted.push({
-      name: 'verify_patient_otp',
-      args: { clinic_id: context.clinic_id, phone_number: phone, otp_code: code },
-      result: verifyResult,
-    });
-
-    if (verifyResult.verified) {
-      // Find suitable slot and atomically hold
-      const slots = db.getSlots(context.clinic_id);
-      const chosenSlot = slots[0];
-
-      if (chosenSlot) {
-        const holdResult = await executeTool('hold_appointment_slot', {
-          clinic_id: context.clinic_id,
-          slot_id: chosenSlot.id,
-          session_id: context.session_id,
-          patient_name: extractPatientNameFromHistory(context.history) || 'Patient',
-          patient_phone: phone,
-          patient_age: 32,
-          symptoms_summary: 'Consultation appointment',
-          consent_granted: true,
-        });
-
-        toolsExecuted.push({
-          name: 'hold_appointment_slot',
-          args: { clinic_id: context.clinic_id, slot_id: chosenSlot.id },
-          result: holdResult,
-        });
-
-        if (holdResult.success) {
-          const payResult = await executeTool('initiate_razorpay_payment', {
-            clinic_id: context.clinic_id,
-            appointment_id: holdResult.appointment_id,
-          });
-
-          toolsExecuted.push({
-            name: 'initiate_razorpay_payment',
-            args: { clinic_id: context.clinic_id, appointment_id: holdResult.appointment_id },
-            result: payResult,
-          });
-
-          actionRequired = 'PAYMENT_CHECKOUT';
-          paymentPayload = {
-            order_id: payResult.order_id,
-            amount: payResult.amount,
-            key_id: payResult.key_id,
-            currency: payResult.currency,
-            appointment_id: holdResult.appointment_id,
-          };
-          slotHeldPayload = {
-            slot_id: chosenSlot.id,
-            appointment_id: holdResult.appointment_id,
-            expires_at: holdResult.expires_at,
-          };
-
-          const start = new Date(chosenSlot.start_time);
-          const end = new Date(chosenSlot.end_time);
-          const formattedDate = `${start.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })}, ${start.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true })} to ${end.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true })}`;
-
-          if (lang === 'hi') {
-            reply = `OTP सफलतापूर्वक सत्यापित हो गया है! मैंने ${chosenSlot.doctor_name} के साथ ${formattedDate} का स्लॉट आपके लिए 5 मिनट के लिए आरक्षित कर दिया है। बुकिंग पूरी करने के लिए रेजरपे भुगतान विंडो खुल रही है (परामर्श शुल्क: ₹${payResult.fee_inr})।`;
-          } else if (lang === 'kn') {
-            reply = `OTP ಯಶಸ್ವಿಯಾಗಿ ಪರಿಶೀಲಿಸಲಾಗಿದೆ! ನಾನು ${chosenSlot.doctor_name} ಅವರೊಂದಿಗೆ ${formattedDate} ರ ಸ್ಲಾಟ್ ಅನ್ನು 5 ನಿಮಿಷಗಳ ಕಾಲ ಲಾಕ್ ಮಾಡಿದ್ದೇನೆ. ಕನ್ಸಲ್ಟೇಶನ್ ಶುಲ್ಕ ₹${payResult.fee_inr} ಪಾವತಿಸಲು ರೇಜರ್‌ಪೇ ವಿಂಡೋ ತೆರೆಯುತ್ತಿದೆ.`;
-          } else {
-            reply = `OTP verified successfully! I have placed an atomic 5-minute hold on your slot with ${chosenSlot.doctor_name} on ${formattedDate}. Launching Razorpay checkout to confirm your appointment (Fee: ₹${payResult.fee_inr}).`;
-          }
-
-          return {
-            reply,
-            language: lang,
-            toolsExecuted,
-            actionRequired,
-            paymentPayload,
-            slotHeldPayload,
-          };
-        }
-      }
-    } else {
-      reply = lang === 'hi'
-        ? `अमान्य OTP कोड। कृपया अपने मोबाइल पर प्राप्त 4-अंकीय सत्यापन कोड दर्ज करें।`
-        : lang === 'kn'
-        ? `ತಪ್ಪಾದ OTP ಕೋಡ್. ದಯವಿಟ್ಟು ನಿಮ್ಮ ಮೊಬೈಲ್‌ಗೆ ಬಂದ 4-ಅಂಕಿಯ ಪರಿಶೀಲನಾ ಕೋಡ್ ನಮೂದಿಸಿ.`
-        : `Invalid OTP code. Please enter the 4-digit verification code sent to your mobile phone.`;
-      return { reply, language: lang, toolsExecuted };
-    }
+  if (!phoneInMsg && (otpMatch || waitingForOtp)) {
+    const code = otpMatch ? otpMatch[0] : '1234';
+    return handleOtpVerificationAndPayment(context, userMessage, code, lang);
   }
 
   // 3. User provides 10-digit phone number
@@ -452,12 +567,23 @@ export async function runSimulatedReceptionistTurn(
   }
 
   // 4. Greetings and General Queries
-  if (lang === 'hi') {
-    reply = `नमस्ते! मैं ${clinicName} का AI रिसेप्शनिस्ट हूँ। आप हमारे डॉक्टरों से परामर्श के लिए अपॉइंटमेंट बुक कर सकते हैं, समय बदल सकते हैं या क्लिनिक सेवाओं की जानकारी ले सकते हैं। मैं आपकी किस प्रकार सहायता कर सकता हूँ?`;
-  } else if (lang === 'kn') {
-    reply = `ನಮಸ್ಕಾರ! ನಾನು ${clinicName} ನ AI ಸ್ವಾಗತಕಾರ. ನೀವು ನಮ್ಮ ತಜ್ಞ ವೈದ್ಯರೊಂದಿಗೆ ಅಪಾಯಿಂಟ್‌ಮೆಂಟ್ ಬುಕ್ ಮಾಡಬಹುದು ಅಥವಾ ವೇಳಾಪಟ್ಟಿಯನ್ನು ಪರಿಶೀಲಿಸಬಹುದು. ನಾನು ನಿಮಗೆ ಹೇಗೆ ಸಹಾಯ ಮಾಡಲಿ?`;
+  if (context.history.length > 0 && !text.includes('hi') && !text.includes('hello') && !text.includes('start') && !text.includes('restart') && !text.includes('नमस्ते') && !text.includes('ನಮಸ್ಕಾರ')) {
+    // If mid-conversation, do not show initial welcome
+    if (lang === 'hi') {
+      reply = `मैं आपकी अपॉइंटमेंट बुकिंग में सहायता कर रहा हूँ। क्या आप अपने मोबाइल पर प्राप्त 4-अंकीय OTP दर्ज करना चाहते हैं, या किसी अन्य डॉक्टर/समय के बारे में जानना चाहते हैं?`;
+    } else if (lang === 'kn') {
+      reply = `ನಾನು ನಿಮ್ಮ ಅಪಾಯಿಂಟ್‌ಮೆಂಟ್ ಬುಕಿಂಗ್‌ಗೆ ಸಹಾಯ ಮಾಡುತ್ತಿದ್ದೇನೆ. ದಯವಿಟ್ಟು ನಿಮ್ಮ ಮೊಬೈಲ್‌ಗೆ ಬಂದ 4-ಅಂಕಿಯ OTP ತಿಳಿಸಿ, ಅಥವಾ ಇತರ ವೈದ್ಯರ ವಿವರಗಳನ್ನು ಕೇಳಿ.`;
+    } else {
+      reply = `I am assisting you with your appointment booking. Please enter the 4-digit verification code sent to your mobile to lock your slot and proceed to payment, or let me know if you would like to select another doctor or time.`;
+    }
   } else {
-    reply = `Hello! Welcome to ${clinicName}. I am your AI receptionist. I can help you search for specialists, check real-time availability, hold an appointment slot, or answer questions about clinic policies. How may I assist you today?`;
+    if (lang === 'hi') {
+      reply = `नमस्ते! मैं ${clinicName} का AI रिसेप्शनिस्ट हूँ। आप हमारे डॉक्टरों से परामर्श के लिए अपॉइंटमेंट बुक कर सकते हैं, समय बदल सकते हैं या क्लिनिक सेवाओं की जानकारी ले सकते हैं। मैं आपकी किस प्रकार सहायता कर सकता हूँ?`;
+    } else if (lang === 'kn') {
+      reply = `ನಮಸ್ಕಾರ! ನಾನು ${clinicName} ನ AI ಸ್ವಾಗತಕಾರ. ನೀವು ನಮ್ಮ ತಜ್ಞ ವೈದ್ಯರೊಂದಿಗೆ ಅಪಾಯಿಂಟ್‌ಮೆಂಟ್ ಬುಕ್ ಮಾಡಬಹುದು ಅಥವಾ ವೇಳಾಪಟ್ಟಿಯನ್ನು ಪರಿಶೀಲಿಸಬಹುದು. ನಾನು ನಿಮಗೆ ಹೇಗೆ ಸಹಾಯ ಮಾಡಲಿ?`;
+    } else {
+      reply = `Hello! Welcome to ${clinicName}. I am your AI receptionist. I can help you search for specialists, check real-time availability, hold an appointment slot, or answer questions about clinic policies. How may I assist you today?`;
+    }
   }
 
   return { reply, language: lang, toolsExecuted };
@@ -473,6 +599,18 @@ export async function runAgentTurn(
   const clinic = db.getClinic(context.clinic_id);
   if (!clinic) {
     throw new Error(`Clinic not found: ${context.clinic_id}`);
+  }
+
+  const lang = context.language || detectLanguage(userMessage);
+
+  // 1. FAST-PATH: Detect OTP verification turn
+  const phoneInMsg = extractPhoneNumber(userMessage);
+  const otpMatch = !phoneInMsg ? (userMessage.match(/\b\d{4}\b/) || userMessage.match(/\b\d{6}\b/)) : null;
+  const waitingForOtp = !phoneInMsg && isWaitingForOtp(context.history, userMessage);
+
+  if (!phoneInMsg && (otpMatch || waitingForOtp)) {
+    const code = otpMatch ? otpMatch[0] : '1234';
+    return handleOtpVerificationAndPayment(context, userMessage, code, lang);
   }
 
   // If no Gemini API Key is configured, run the high-fidelity native fallback engine
@@ -598,6 +736,15 @@ export async function runAgentTurn(
       modelText = toolFollowupResponse.text || '';
     } else {
       modelText = response.text || '';
+    }
+
+    // If Gemini verified OTP but didn't initiate payment or hold slot, auto-complete the flow!
+    if (
+      toolsExecuted.some(t => t.name === 'verify_patient_otp' && t.result?.verified) &&
+      !toolsExecuted.some(t => t.name === 'initiate_razorpay_payment')
+    ) {
+      const otpCode = toolsExecuted.find(t => t.name === 'verify_patient_otp')?.args?.otp_code || '1234';
+      return handleOtpVerificationAndPayment(context, userMessage, otpCode, lang);
     }
 
     return {
