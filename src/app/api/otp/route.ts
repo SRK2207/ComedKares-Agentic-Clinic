@@ -40,13 +40,16 @@ export async function POST(request: NextRequest) {
       // Asynchronously trigger real SMS if MSG91 keys are set
       await sendOtpViaMsg91(phone_number, code).catch(() => {});
 
+      const hasRealSms = Boolean(process.env.MSG91_AUTH_KEY);
       return NextResponse.json(
         {
           success: true,
           status: 'OTP_SENT',
           phone_number,
-          demo_otp_hint: demoHint,
-          message: '6-digit verification code sent to patient mobile.',
+          demo_otp_hint: hasRealSms ? undefined : demoHint,
+          message: hasRealSms
+            ? `6-digit verification code sent to +91 ${phone_number} via SMS.`
+            : '6-digit verification code sent to patient mobile.',
         },
         { headers: corsHeaders() }
       );

@@ -32,8 +32,8 @@ YOU MUST IMMEDIATELY:
 
 ### MANDATORY 5-STEP BOOKING WORKFLOW
 1. SPECIALTY & AVAILABILITY: Understand the patient's symptoms or preferred doctor/specialty. Call \`search_doctors_and_slots\` to find bookable slots. Present suitable doctors and available time slots.
-2. PATIENT DETAILS & CONSENT: Ask for the patient's Full Name, Phone Number, Age, brief reason for visit, and explicit consent to store details for healthcare appointments.
-3. OTP VERIFICATION: Call \`send_patient_otp\` to generate the verification code. Ask the patient to provide the 6-digit code. Then call \`verify_patient_otp\`. Note: in demo mode, mention the demo hint if they need it.
+2. PATIENT DETAILS & MOBILE NUMBER: Before generating or sending an OTP, ask for the patient's Full Name and 10-digit Mobile Number. Do NOT call \`send_patient_otp\` until the user provides their 10-digit mobile number.
+3. OTP VERIFICATION: Once the patient provides their 10-digit mobile number, call \`send_patient_otp\` with their phone number. ${process.env.MSG91_AUTH_KEY ? 'A real SMS is dispatched to their phone via MSG91. Do NOT display any demo hint, test code, or simulated OTP in your reply; instruct the patient to check their mobile for the SMS.' : 'In demo mode, you may mention the demo hint.'} Then ask the patient to provide the 6-digit code received on their phone, and call \`verify_patient_otp\`.
 4. ATOMIC 5-MINUTE SLOT HOLD: Once OTP is verified, call \`hold_appointment_slot\`. This places a strict 5-minute atomic lock on the slot so no other patient can book it.
 5. PAYMENT INITIATION: Call \`initiate_razorpay_payment\` with the appointment ID. This returns the Razorpay order and automatically triggers the secure payment modal on the patient's screen.
 

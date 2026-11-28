@@ -50,8 +50,10 @@ async function runTests() {
   console.log('   ✅ Clinic Beta config strictly isolated: ' + configBeta.clinic.name);
 
   // Test 6: Conversational Booking Sequence on Clinic Alpha
-  console.log('5. Testing Conversational Booking Flow (Search -> OTP -> 5-min Hold -> Razorpay)...');
-  const chat1 = await (await fetch(`${BASE}/api/agent/chat`, {
+  console.log('5. Testing Conversational Booking Flow (Search -> Ask Phone -> Send OTP -> 5-min Hold -> Razorpay)...');
+  
+  // Step 5a: Patient asks to book without providing phone number -> Agent lists slots and prompts for phone
+  const chatPromptPhone = await (await fetch(`${BASE}/api/agent/chat`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -62,8 +64,28 @@ async function runTests() {
     }),
   })).json();
 
-  console.log('   AI Reply:', chat1.reply.substring(0, 80) + '...');
-  assert(chat1.toolsExecuted.some(t => t.name === 'search_doctors_and_slots'), 'Must execute search_doctors_and_slots');
+  console.log('   AI Reply (Asking for phone):', chatPromptPhone.reply.substring(0, 90) + '...');
+  assert(chatPromptPhone.toolsExecuted.some(t => t.name === 'search_doctors_and_slots'), 'Must execute search_doctors_and_slots');
+  assert(chatPromptPhone.reply.includes('10-digit mobile number'), 'Must prompt for 10-digit mobile number');
+  console.log('   ✅ Agent correctly requested 10-digit phone number before generating OTP');
+
+  // Step 5b: Patient provides 10-digit phone number -> Agent sends OTP
+  const chat1 = await (await fetch(`${BASE}/api/agent/chat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      clinic_id: 'clinic_alpha',
+      session_id: 'sess_test_123',
+      message: 'My mobile number is 9876543210',
+      language: 'en',
+      history: [
+        { role: 'user', content: 'I would like to book a dental consultation with Dr. Priya Sharma for teeth cleaning' },
+        { role: 'assistant', content: chatPromptPhone.reply },
+      ],
+    }),
+  })).json();
+
+  console.log('   AI Reply (OTP dispatched):', chat1.reply.substring(0, 90) + '...');
   assert(chat1.toolsExecuted.some(t => t.name === 'send_patient_otp'), 'Must execute send_patient_otp');
   
   const otpTool = chat1.toolsExecuted.find(t => t.name === 'send_patient_otp');
@@ -81,7 +103,9 @@ async function runTests() {
       message: `Here is my OTP: ${demoOtp}`,
       language: 'en',
       history: [
-        { role: 'user', content: 'My name is Ramesh Kumar, phone: 9876543210. I want dental consultation.' },
+        { role: 'user', content: 'I would like to book a dental consultation with Dr. Priya Sharma for teeth cleaning' },
+        { role: 'assistant', content: chatPromptPhone.reply },
+        { role: 'user', content: 'My name is Ramesh Kumar, phone: 9876543210' },
         { role: 'assistant', content: chat1.reply },
       ],
     }),
